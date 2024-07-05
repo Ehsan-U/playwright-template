@@ -1,0 +1,5 @@
+.extensions/
+.profile*/
+*.pyc
+__pycache__/
+test.py
