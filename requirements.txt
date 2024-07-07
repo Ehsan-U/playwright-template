@@ -1,4 +1,3 @@
 undetected-playwright-patch
 setuptools
-browserforge[all]
 parsel
