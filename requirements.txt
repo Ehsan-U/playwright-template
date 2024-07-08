@@ -1,3 +1,6 @@
 undetected-playwright-patch
 setuptools
 parsel
+playwright
+jsonlines
+openpyxl

@@ -1,5 +1,5 @@
 from src.driver import WebDriver
-from undetected_playwright.async_api import async_playwright
+from playwright.async_api import async_playwright
 import asyncio
 
 
@@ -17,4 +17,3 @@ async def crawl():
     await driver.close()
 
 asyncio.run(crawl())
-
