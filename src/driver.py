@@ -1,9 +1,10 @@
 import random
 from typing import Dict
+from urllib.parse import urlparse
 from parsel import Selector
 from src.logger import logger
-from playwright.async_api import Frame, Response, BrowserContext, Page, Playwright, BrowserType
-from src.dom import Element
+from playwright.async_api import Frame, Response, BrowserContext, Page, Playwright, BrowserType, Route, Request
+from src.dom import ElementSelector
 
 
 
@@ -23,17 +24,20 @@ class WebDriver:
         playwright: Playwright,
         browser_launch_type: str,
         launch_args: Dict,
-        timeout: int
+        timeout: int,
+        block_resources: bool = False
     ):
         browser_type: BrowserType = getattr(playwright, browser_launch_type)
         browser = await browser_type.launch(**launch_args)
         context = await browser.new_context()
         page = await context.new_page()
         driver = cls(context=context, page=page, timeout=timeout)
+        if block_resources:
+            await driver.page.route("**/*", driver.block_resources)
         return driver
     
 
-    async def exists(self, el: Element, iframe: Frame = None) -> bool:
+    async def exists(self, el: ElementSelector, iframe: Frame = None) -> bool:
         target = iframe if iframe else self.page
         action_name = f"{self.__class__.__name__}.{self.exists.__name__}"
         try:
@@ -43,11 +47,11 @@ class WebDriver:
             logger.debug(f"Selector '{el.name}' {'exists' if exists else 'does not exist'} (count: {count})")
             return exists
         except Exception as e:
-            logger.exception(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
+            logger.debug(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
             return False
 
 
-    async def click(self, el: Element, wait_after: int = None, iframe: Frame = None, timeout: int = None) -> bool:
+    async def click(self, el: ElementSelector, wait_after: int = None, iframe: Frame = None, timeout: int = None) -> bool:
         target = iframe if iframe else self.page
         action_name = f"{self.__class__.__name__}.{self.click.__name__}"
         try:
@@ -59,11 +63,11 @@ class WebDriver:
             logger.debug(f"Selector '{el.name}' clicked")
             return True
         except Exception as e:
-            logger.exception(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
+            logger.debug(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
             return False
 
 
-    async def fill(self, el: Element, value: str, wait_after: int = None, iframe: Frame = None, timeout: int = None) -> bool:
+    async def fill(self, el: ElementSelector, value: str, wait_after: int = None, iframe: Frame = None, timeout: int = None) -> bool:
         target = iframe if iframe else self.page
         action_name = f"{self.__class__.__name__}.{self.fill.__name__}"
         try:
@@ -75,11 +79,11 @@ class WebDriver:
             logger.debug(f"Selector '{el.name}' filled")
             return True
         except Exception as e:
-            logger.exception(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
+            logger.debug(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
             return False
 
 
-    async def wait_for_selector(self, el: Element, state: str = "visible", iframe: Frame = None, timeout: int = None) -> bool:
+    async def wait_for_selector(self, el: ElementSelector, state: str = "visible", iframe: Frame = None, timeout: int = None) -> bool:
         target = iframe if iframe else self.page
         action_name = f"{self.__class__.__name__}.{self.wait_for_selector.__name__}"
         try:
@@ -89,11 +93,11 @@ class WebDriver:
             logger.debug(f"Selector '{el.name}' found (state: {state})")
             return True
         except Exception as e:
-            logger.exception(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
+            logger.debug(f"Error in '{action_name}' for selector '{el.name}': {str(e)}")
             return False
 
 
-    async def get_page(self, url: str, wait_el: ElementPath = None, wait_after: int = 0, wait_until: str = "load", callback: callable = None, timeout: int = None, **kwargs) -> Response:
+    async def get_page(self, url: str, wait_el: ElementSelector = None, wait_after: int = 0, wait_until: str = "load", callback: callable = None, timeout: int = None, **kwargs) -> Response:
         action_name = f"{self.__class__.__name__}.{self.get_page.__name__}"
         try:
             logger.debug(f"Attempting to navigate to '{url}'")
@@ -111,7 +115,7 @@ class WebDriver:
             logger.debug(f"Successfully navigated to '{url}'")
             return response
         except Exception as e:
-            logger.exception(f"Error in '{action_name}' for URL '{url}': {str(e)}")
+            logger.debug(f"Error in '{action_name}' for URL '{url}': {str(e)}")
             return None
         
 
@@ -119,9 +123,19 @@ class WebDriver:
         await self.page.wait_for_timeout(random.uniform(a, b)*1000)
 
 
-    async def selector(self) -> Selector:
-        content = await self.page.content()
+    async def selector(self, iframe: Frame = None) -> Selector:
+        target = iframe if iframe else self.page
+        content = await target.content()
         return Selector(text=content)
+    
+
+    async def block_resources(self, route: Route, request: Request):
+        ad_domains = ['googletagmanager.com']
+        request_domain = urlparse(request.url)
+        if request.resource_type == "image" or any([domain for domain in ad_domains if domain in request_domain]):
+            await route.abort()
+        else:
+            await route.continue_()
     
 
     async def close(self) -> None:
@@ -131,4 +145,4 @@ class WebDriver:
                 await self.context.close()
                 logger.debug(f"Browser closed")
             except Exception as e:
-                logger.exception(f"Error in '{action_name}': {str(e)}")
+                logger.debug(f"Error in '{action_name}': {str(e)}")

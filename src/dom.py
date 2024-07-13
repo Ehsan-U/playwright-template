@@ -1,6 +1,6 @@
 from enum import Enum
 
-class Element(Enum):
+class ElementSelector(Enum):
     """
     Represents an element within an HTML page structure.
 
