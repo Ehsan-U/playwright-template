@@ -2,9 +2,8 @@ import random
 from typing import Dict
 from urllib.parse import urlparse
 from parsel import Selector
-from src.logger import logger
+from src.utils import logger, ElementSelector
 from playwright.async_api import Frame, Response, BrowserContext, Page, Playwright, BrowserType, Route, Request
-from src.dom import ElementSelector
 
 
 
@@ -122,6 +121,10 @@ class WebDriver:
     async def sleep(self, a: float, b: float) -> None:
         await self.page.wait_for_timeout(random.uniform(a, b)*1000)
 
+
+    async def type(self, el: ElementSelector, value: str) -> None:
+        await self.page.type(el.value, value)
+        
 
     async def selector(self, iframe: Frame = None) -> Selector:
         target = iframe if iframe else self.page
