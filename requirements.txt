@@ -1,0 +1,3 @@
+parsel
+playwright
+python-dotenv
